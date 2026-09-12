@@ -1,0 +1,8 @@
+def demo():
+    questions = [{'id': 11, 'question_name': 'Evidence & interpretation', 'question_type': 'essay_question', 'question_text': '<p>Choose one claim from the reading. What evidence supports it, and what would make you reconsider?</p>', 'points_possible': 5}, {'id': 12, 'question_name': 'Bring a question to class', 'question_type': 'essay_question', 'question_text': '<p>What is one question you would like us to discuss together?</p>', 'points_possible': 3}]
+    people = [('Alex Morgan', '<p>The author links participation to a stronger sense of belonging. The interview examples support that claim, but a comparison group would help distinguish cause from correlation.</p>'), ('Jordan Lee', '<p>I found the longitudinal study most persuasive: it follows the same people over time. I would reconsider if the pattern disappeared after controlling for prior experience.</p>'), ('Sam Rivera', ''), ('Taylor Chen', None)]
+    records = []
+    for q in questions:
+        for i, (name, answer) in enumerate(people):
+            records.append(dict(submission_id=100+i, assignment_submission_id=200+i, user_id=10+i, name=name, attempt=2 if i == 1 else 1, state='pending_review', question=q.copy(), answer=answer if q['id']==11 else ('<p>How might the result change in a different setting?</p>' if answer else answer), available=True, grading_status='graded' if i==0 else 'ungraded', score=4.5 if i==0 else None, comment='Thoughtful use of evidence.' if i==0 else None, editable=True))
+    return dict(title='Week 03 · Reading reflections', source='demo', course='101', quiz='42', records=records, warnings=[], absent=[{'name': 'Casey Brooks', 'state': 'missing'}, {'name': 'Riley Park', 'state': 'excused'}])

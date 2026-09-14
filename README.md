@@ -4,6 +4,18 @@ A local Flask app for reading essay responses question by question and saving gr
 
 ## Run
 
+To prepare a source-only ZIP for colleagues, double-click `make-share-zip.bat`
+on Windows with Python 3 installed. On macOS or Linux, run
+`python3 make_share_zip.py`. The ZIP appears in `dist/`.
+These packaging tools are available in the development checkout and are not
+included in the sharing ZIP.
+The packager includes only explicitly listed source, test, and documentation
+files and generates a fresh placeholder `.env.example` with Safe Mode enabled.
+It excludes `.env`, `instance/` (student data and audit history), Git history,
+virtual environments, caches, exports, and backups. If you add source files,
+update `FILES` in the packager. Source and documentation are included as-is;
+do not put private data or credentials in those files.
+
 Python 3.12 or newer is recommended. Dependencies and a virtual environment are already installed in this checkout.
 
 ```sh

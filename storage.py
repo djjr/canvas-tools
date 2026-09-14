@@ -101,6 +101,25 @@ class Storage:
             row = db.execute('SELECT data FROM snapshots WHERE id=?', (key,)).fetchone()
         return json.loads(row['data']) if row else None
 
+    def reset_demo(self):
+        """Clear only synthetic demo drafts; preserve history and live workspaces."""
+        from fixtures import demo
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            for row in db.execute('SELECT id, data FROM snapshots').fetchall():
+                data = json.loads(row['data'])
+                if data.get('source') != 'demo':
+                    continue
+                removed = []
+                for record in data['records']:
+                    draft = db.execute('SELECT * FROM drafts WHERE id=?', (record['key'],)).fetchone()
+                    if draft:
+                        removed.append(dict(draft))
+                        db.execute('DELETE FROM drafts WHERE id=?', (record['key'],))
+                self._audit(db, 'demo.reset', row['id'], before=removed,
+                            after={'note': 'Demo drafts cleared; comment board and audit history retained.'})
+        return self.save_snapshot(demo())
+
     def drafts(self):
         with self.connect() as db:
             return {r['id']: dict(r) for r in db.execute('SELECT * FROM drafts')}

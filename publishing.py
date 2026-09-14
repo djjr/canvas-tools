@@ -15,10 +15,6 @@ def fingerprint(record):
     return hashlib.sha256(json.dumps([record['question'], record['answer'], record['score'], record['comment'], record.get('grading_status', 'unknown')], sort_keys=True).encode()).hexdigest()
 
 
-def identity(record):
-    return tuple(record[k] for k in ('submission_id', 'user_id', 'attempt')) + (record['question']['id'],)
-
-
 def matches(record, item):
     try:
         return (record.get('grading_status') == 'graded'
@@ -32,28 +28,39 @@ class Publisher:
     def __init__(self, storage, client):
         self.storage, self.client = storage, client
 
-    def fresh(self, data):
+    def check_site(self, data):
         if data['source'] != self.client.base:
             raise CanvasError('Configured Canvas site differs from this workspace. Reload the correct quiz.')
-        return {identity(r): r for r in self.client.load(data['course'], data['quiz'])['records']}
+
+    def refresh(self, data, record):
+        """Current Canvas state for exactly one record. Scoped to one submission
+        instead of a full-quiz reload, since callers only ever look up one identity."""
+        excused, records = self.client.load_submission(data['course'], data['quiz'], data.get('assignment'), record['submission_id'], record['attempt'], record['user_id'])
+        fresh = records.get(str(record['question']['id']))
+        if not fresh:
+            return None
+        state = 'excused' if excused else record['state']
+        current = {**record, **fresh, 'state': state, 'editable': fresh['available'] and state in ('complete', 'pending_review')}
+        current['fingerprint'] = fingerprint(current)
+        return current
 
     def preview(self, key):
         data = self.storage.snapshot(key)
         if not data or data['source'] == 'demo':
             raise CanvasError('Demo workspaces cannot publish.')
+        self.check_site(data)
         drafts = self.storage.drafts()
-        fresh = self.fresh(data)
         uncertain = {item['record']['key'] for item in self.storage.uncertain_items(key)}
         items = []
         for record in data['records']:
             draft = drafts.get(record['key'])
             if not draft or not draft['reviewed']:
                 continue
-            current = fresh.get(identity(record))
+            current = self.refresh(data, record)
             error = None
             if not record['editable'] or not current or not current['editable']:
                 error = 'This exact attempt is unavailable or cannot be graded.'
-            elif draft['fingerprint'] != record['fingerprint'] or fingerprint(current) != record['fingerprint']:
+            elif draft['fingerprint'] != record['fingerprint'] or current['fingerprint'] != record['fingerprint']:
                 error = 'Canvas data changed. Reload and review this draft.'
             try:
                 score = Decimal(draft['score'])
@@ -74,17 +81,16 @@ class Publisher:
         if not batch:
             raise CanvasError('Upload review not found.')
         data = self.storage.snapshot(batch['key'])
-        fresh = self.fresh(data)
+        self.check_site(data)
         for item in batch['items']:
             if item['status'] != 'uncertain':
                 continue
-            current = fresh.get(identity(item['record']))
+            current = self.refresh(data, item['record'])
             draft = self.storage.drafts().get(item['record']['key'])
             if current and matches(current, item):
                 if draft and draft_version(draft) == item['version']:
                     updated = copy.deepcopy(current)
                     updated['key'] = item['record']['key']
-                    updated['fingerprint'] = fingerprint(updated)
                     self.storage.complete_publish(batch['key'], updated, item['draft'])
                 item['status'] = 'success'
                 item['message'] = 'Expected result verified in Canvas; no additional write sent.'
@@ -100,7 +106,7 @@ class Publisher:
         batch['state'] = 'running'
         self.storage.publish_batch(token, batch)
         data = self.storage.snapshot(batch['key'])
-        fresh_cache = self.fresh(data)
+        self.check_site(data)
         for item in batch['items']:
             if item['status'] != 'ready':
                 continue
@@ -109,18 +115,17 @@ class Publisher:
                 draft = self.storage.drafts().get(record['key'])
                 if not draft or draft_version(draft) != item['version']:
                     raise CanvasError('Local draft changed after review. Create a new review.')
-                current = fresh_cache.get(identity(record))
-                if not current or not current['editable'] or fingerprint(current) != record['fingerprint']:
+                current = self.refresh(data, record)
+                if not current or not current['editable'] or current['fingerprint'] != record['fingerprint']:
                     raise CanvasError('Canvas changed after review. No update sent.')
                 item['status'], item['message'] = 'uncertain', 'Request may have been sent. Verify in Canvas before retrying.'
                 self.storage.publish_batch(token, batch)  # Durable before the network write.
                 self.client.publish_question(data['course'], data['quiz'], record['submission_id'], record['attempt'], record['question']['id'], expected['score'], expected['comment'])
-                current = self.fresh(data).get(identity(record))
+                current = self.refresh(data, record)
                 if not current or not matches(current, item):
                     raise CanvasError('Canvas did not confirm the expected result. Verify in Canvas before retrying.')
                 updated = copy.deepcopy(current)
                 updated['key'] = record['key']
-                updated['fingerprint'] = fingerprint(updated)
                 # Refresh just this item, leaving other cached drafts and versions alone.
                 self.storage.complete_publish(batch['key'], updated, expected)
                 item['status'], item['message'] = 'success', 'Saved to Canvas and verified.'

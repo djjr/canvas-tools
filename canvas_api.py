@@ -113,7 +113,36 @@ class CanvasClient:
         absent = [{'name': (r.get('user') or {}).get('name', f"Student {r['user_id']}"), 'state': 'excused' if r.get('excused') else 'missing' if r.get('missing') or r.get('workflow_state') == 'unsubmitted' else r.get('workflow_state', 'unknown')} for r in roster if r['user_id'] not in represented]
         if not assignment:
             warnings.append('This quiz has no assignment roster. Students without a quiz submission cannot be listed.')
-        return {'title': metadata.get('title', 'Canvas Quiz'), 'source': self.base, 'course': course, 'quiz': quiz, 'records': records, 'warnings': warnings, 'absent': absent}
+        return {'title': metadata.get('title', 'Canvas Quiz'), 'source': self.base, 'course': course, 'quiz': quiz, 'assignment': assignment, 'records': records, 'warnings': warnings, 'absent': absent}
+
+    def load_submission(self, course, quiz, assignment, submission, attempt, user_id):
+        """Refetch one submission's essay-question grading state. Used to verify a
+        publish without reloading every other student, which is what made uploads slow."""
+        root = f'/api/v1/courses/{course}/quizzes/{quiz}'
+        person = {}
+        if assignment:
+            try:
+                person, _ = self.get(f'/api/v1/courses/{course}/assignments/{assignment}/submissions/{user_id}', {'include[]': ['user', 'submission_history']})
+            except CanvasError:
+                person = {}
+        questions = self.pages(root + '/questions', params={'quiz_submission_id': submission, 'quiz_submission_attempt': attempt, 'per_page': 100})
+        answers = self.pages(f'/api/v1/quiz_submissions/{submission}/questions', 'quiz_submission_questions', {'quiz_submission_attempt': attempt, 'include[]': 'quiz_question', 'per_page': 100})
+        answer_map = {str(a['id']): a for a in answers}
+        history = person.get('submission_history', [])
+        snapshot = next((h for h in history if h.get('attempt') == attempt), None)
+        if snapshot is None and person.get('attempt') == attempt:
+            snapshot = person
+        details = {str(a['question_id']): a for a in (snapshot or {}).get('submission_data', []) if isinstance(a, dict) and 'question_id' in a}
+        records = {}
+        for question in questions:
+            if question.get('question_type') != 'essay_question':
+                continue
+            qid = str(question['id'])
+            a, detail = answer_map.get(qid, {}), details.get(qid, {})
+            available = 'text' in detail or 'answer' in a
+            answer = detail['text'] if 'text' in detail else a.get('answer')
+            records[qid] = {'question': question, 'answer': answer, 'available': available, 'score': detail.get('points', a.get('score')), 'grading_status': grading_status(detail, a), 'comment': detail.get('more_comments', a.get('comment'))}
+        return bool(person.get('excused')), records
 
     def publish_question(self, course, quiz, submission, attempt, question, score, comment):
         """Only the Classic Quiz manual-grading endpoint; never submission-wide comments."""

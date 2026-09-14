@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<main class="landing">
+  <h1>Reset demo drafts</h1>
+  <p>Restore the sample quiz and clear its draft scores, feedback, and Newly Graded marks. Live Canvas quizzes, reusable comments, and audit history are preserved.</p>
+  <form method="post" action="{{ url_for('reset_demo') }}">
+    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+    <button type="submit">Reset demo and open it</button>
+  </form>
+</main>
+{% endblock %}

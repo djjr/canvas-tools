@@ -88,6 +88,13 @@ def create_app(test_config=None):
     def index():
         return render_template('index.html')
 
+    @app.route('/demo/reset', methods=['GET', 'POST'])
+    def reset_demo():
+        if request.method == 'POST':
+            key = storage.reset_demo()
+            return redirect(url_for('grade', key=key))
+        return render_template('reset_demo.html')
+
     @app.post('/load')
     def load():
         try:

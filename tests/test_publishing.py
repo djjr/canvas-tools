@@ -1,4 +1,3 @@
-import copy
 from unittest.mock import Mock
 import pytest
 from app import create_app
@@ -15,7 +14,12 @@ def setup(tmp_path):
     record=data['records'][0]
     storage.save_draft(record['key'],record['fingerprint'],'3.25','',True)
     client=Mock(); client.base=data['source']
-    client.load.side_effect=lambda *args: copy.deepcopy(data)
+    def load_submission(course,quiz,assignment,submission,attempt,user_id):
+        found=[r for r in data['records'] if (r['submission_id'],r['attempt'],r['user_id'])==(submission,attempt,user_id)]
+        excused=any(r['state']=='excused' for r in found)
+        records={str(r['question']['id']):{'question':r['question'],'answer':r['answer'],'available':r['available'],'score':r['score'],'grading_status':r['grading_status'],'comment':r['comment']} for r in found}
+        return excused,records
+    client.load_submission.side_effect=load_submission
     def write(course,quiz,submission,attempt,question,score,comment):
         for r in data['records']:
             if (r['submission_id'],r['attempt'],r['question']['id'])==(submission,attempt,question):
@@ -33,6 +37,7 @@ def test_preview_is_readonly_and_confirm_is_exact_and_verified(setup):
     result=p.run(token)
     assert result['items'][0]['status']=='success'
     client.publish_question.assert_called_once_with('101','42',100,1,11,'3.25','')
+    client.load.assert_not_called()  # verification must not reload the whole quiz
     draft=storage.drafts()[r['key']]
     assert draft['reviewed']==0
     updated=storage.snapshot(key)['records'][0]
@@ -106,6 +111,7 @@ def test_reconcile_verifies_without_resending(setup):
     assert p.reconcile(token)['items'][0]['status']=='success'
     assert c.publish_question.call_count==1
     assert s.drafts()[r['key']]['reviewed']==0
+    c.load.assert_not_called()
 
 def test_partial_results_keep_success_and_continue_after_conflict(setup):
     app,s,key,data,r,c=setup
@@ -118,6 +124,30 @@ def test_partial_results_keep_success_and_continue_after_conflict(setup):
     assert c.publish_question.call_count==1
     assert s.drafts()[r['key']]['reviewed']==1
     assert s.drafts()[other['key']]['reviewed']==0
+    c.load.assert_not_called()
+
+def test_verification_uses_scoped_single_submission_endpoints_not_a_full_reload():
+    """Publishing must never re-fetch the whole quiz to verify one write.
+    Only these three per-submission endpoints should ever be hit."""
+    calls=[]
+    def fake_get(url, params=None, headers=None, timeout=None, allow_redirects=None):
+        calls.append(url)
+        response=Mock(status_code=200, links={})
+        if url.endswith('/courses/1/assignments/9/submissions/55'):
+            response.json=lambda: {'excused':False,'user':{'name':'Sam'},'submission_history':[{'attempt':2,'submission_data':[{'question_id':11,'text':'An answer','points':4.5,'correct':'defined','more_comments':'Nice work'}]}]}
+        elif url.endswith('/courses/1/quizzes/2/questions'):
+            response.json=lambda: [{'id':11,'question_type':'essay_question','question_name':'Q','question_text':'<p>?</p>','points_possible':5}]
+        elif url.endswith('/quiz_submissions/345/questions'):
+            response.json=lambda: {'quiz_submission_questions':[{'id':11,'answer':'fallback','correct':'defined'}]}
+        else:
+            raise AssertionError(f'Unexpected URL fetched during scoped verification: {url}')
+        return response
+    session=Mock(); session.get.side_effect=fake_get
+    client=CanvasClient('https://school.test','SECRET',session)
+    excused, records = client.load_submission('1','2','9',345,2,55)
+    assert excused is False
+    assert records=={'11':{'question':{'id':11,'question_type':'essay_question','question_name':'Q','question_text':'<p>?</p>','points_possible':5},'answer':'An answer','available':True,'score':4.5,'grading_status':'graded','comment':'Nice work'}}
+    assert len(calls)==3
 
 def test_environment_safe_mode_cannot_be_disabled_by_url(setup,monkeypatch):
     app,s,key,data,r,c=setup;monkeypatch.setenv('CANVAS_SAFE_MODE','1')

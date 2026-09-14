@@ -1,5 +1,13 @@
 # Margin: LLM coding handoff
 
+The app lives in `quiz-grader/` within `djjr/canvas-tools`. Run commands from
+this directory. In the original local checkout at
+`/Users/danryan/Documents/GitHub/canvas-quiz-grader/quiz-grader`, the existing
+virtual environment remains one directory above: use `../.venv/bin/python`.
+New checkouts can create `.venv` inside `quiz-grader/` as the README describes.
+Credentials, saved student data, and distribution ZIPs are local ignored files
+under this app directory; the repository root contains the tools index README.
+
 ## Product
 
 Margin is a single-user localhost Flask app for grading Canvas Classic Quiz essay responses question by question. Canvas is the source of truth. SQLite stores snapshots, drafts, comment-board entries, audit events, and upload journals.

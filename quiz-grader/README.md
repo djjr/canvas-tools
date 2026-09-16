@@ -113,3 +113,7 @@ Recorded events include saved draft versions (scores, comments, readiness, stude
 History has no automatic deletion. Back up `instance/grader.sqlite` while the app is stopped to retain the full audit trail; exports contain student data and feedback. Deleting the database removes history. Auditing preserves each autosaved version, so database size grows with use.
 
 While an upload is running, the confirmation button changes to **Sending to Canvas… Ns** and a live message explains that Canvas may take a moment. Do not submit again. The browser only adds a local timer; it does not add Canvas traffic. Per-item server progress remains a follow-up improvement if uploads routinely take long enough to need it.
+
+### Resizing the grading workspace
+
+Drag the divider below the question panel up or down to make more room for responses. Each panel scrolls independently, and your preferred height is remembered in this browser. You can also focus the divider and use Up/Down arrows to resize it, or double-click it to restore its default size.

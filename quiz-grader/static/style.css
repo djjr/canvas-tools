@@ -6,3 +6,10 @@
 .publish-confirm{padding:18px 0}.publish-confirm button{min-width:280px}.publish-confirm [role=status]{margin-top:10px}
 .question-panel{position:sticky;top:0;z-index:5;background:var(--paper);padding:18px 0 12px;border-bottom:1px solid var(--line);box-shadow:0 5px 10px var(--paper)}.grading{height:calc(100vh - 78px);overflow-y:auto;scroll-behavior:smooth}.response{scroll-margin-top:18px}.response:focus{outline:2px solid #80ab8e;outline-offset:3px}@media(max-width:1100px){.grading{height:auto;overflow:visible}.question-panel{position:sticky;top:0}}
 .question-panel .prompt{padding:0 0 14px}.question-panel .prompt h1{margin:8px 0 10px}.question-panel .publish-bar{padding:12px 0}
+
+/* Independently scrollable question and response panes. */
+.grading.resizable-grading{display:grid;grid-template-rows:var(--question-panel-height,220px) 24px minmax(0,1fr);height:calc(100dvh - 78px);min-height:320px;overflow:hidden;padding-top:0;padding-bottom:0}
+.resizable-grading>.question-panel{position:static;min-height:0;overflow-y:auto;overscroll-behavior:contain;box-shadow:none;padding:10px 0}
+.response-viewport{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:0 4px 32px}
+.panel-divider{cursor:row-resize;touch-action:none;user-select:none;background:#e5eee3;color:var(--green);font-size:11px;line-height:24px;text-align:center;border-radius:3px}
+.panel-divider:hover,.panel-divider:focus-visible{background:#cddfca;outline:2px solid #80ab8e;outline-offset:-2px}

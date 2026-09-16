@@ -150,11 +150,62 @@ for (const form of document.querySelectorAll('.publish-confirm')) {
   document.addEventListener('keydown',e=>{
     const editing=e.target.matches('textarea,input,[contenteditable="true"]');
     if(e.key==='Escape' && editing){e.preventDefault(); const row=e.target.closest('.response'); if(row){row.focus(); navFocus=true;} return;}
-    if(editing || !navFocus)return;
+    if(editing || !navFocus || e.target.closest('.panel-divider'))return;
     if(['ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault(); const rows=responses(); const i=rows.indexOf(document.activeElement.closest('.response')); focusResponse(i+(e.key==='ArrowDown'?1:-1));}
     if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault(); moveQuestion(e.key==='ArrowRight'?1:-1);}
   });
   document.addEventListener('click',e=>{if(e.target.closest('.response'))navFocus=true;});
 })();
 
-(function(){ const id=new URLSearchParams(location.search).get('student'); if(!id)return; const row=document.querySelector(`.response[data-student="${CSS.escape(id)}"]`); if(row){row.scrollIntoView({block:'center'}); row.focus();} })();
+(function(){
+  const pane=document.querySelector('.grading');
+  const panel=pane?.querySelector('.question-panel');
+  if(!panel || !pane.querySelector('.response')) return;
+  const responses=document.createElement('div');
+  responses.className='response-viewport'; responses.id='response-viewport';
+  while(panel.nextSibling) responses.append(panel.nextSibling);
+  const divider=document.createElement('div');
+  divider.className='panel-divider'; divider.tabIndex=0;
+  divider.setAttribute('role','separator');
+  divider.setAttribute('aria-label','Resize question panel');
+  divider.setAttribute('aria-orientation','horizontal');
+  divider.setAttribute('aria-controls','question-panel response-viewport');
+  divider.title='Drag to resize. Arrow keys adjust height; double-click to reset.';
+  divider.textContent='⋯  Drag to resize  ⋯';
+  panel.id='question-panel';
+  pane.append(divider,responses); pane.classList.add('resizable-grading');
+  const storageKey='margin-question-panel-height';
+  let preferred=null;
+  try { const saved=Number(localStorage.getItem(storageKey)); if(saved>0) preferred=saved; } catch {}
+  function limits(){return {min:80,max:Math.max(80,pane.clientHeight-190)};}
+  function resize(height,save=false){
+    const {min,max}=limits(); const value=Math.round(Math.max(min,Math.min(max,height)));
+    pane.style.setProperty('--question-panel-height',value+'px');
+    divider.setAttribute('aria-valuemin',min);divider.setAttribute('aria-valuemax',max);
+    divider.setAttribute('aria-valuenow',value);
+    divider.setAttribute('aria-valuetext',value+' pixels');
+    if(save){preferred=value;try{localStorage.setItem(storageKey,String(value));}catch{}}
+  }
+  function defaultHeight(){return Math.min(panel.scrollHeight, pane.clientHeight*.38);}
+  resize(preferred ?? defaultHeight());
+  let start=null;
+  divider.addEventListener('pointerdown',event=>{
+    if(event.button!==0)return;
+    event.preventDefault();divider.focus();divider.setPointerCapture(event.pointerId);
+    start={y:event.clientY,height:panel.getBoundingClientRect().height};
+  });
+  divider.addEventListener('pointermove',event=>{if(start)resize(start.height+event.clientY-start.y);});
+  function finish(){if(start){start=null;resize(panel.getBoundingClientRect().height,true);}}
+  divider.addEventListener('pointerup',finish);divider.addEventListener('pointercancel',finish);
+  divider.addEventListener('lostpointercapture',finish);
+  divider.addEventListener('keydown',event=>{
+    if(!['ArrowUp','ArrowDown','Home','End'].includes(event.key))return;
+    event.preventDefault();event.stopPropagation();
+    const {min,max}=limits();
+    resize(event.key==='Home'?min:event.key==='End'?max:panel.getBoundingClientRect().height+(event.key==='ArrowDown'?20:-20),true);
+  });
+  divider.addEventListener('dblclick',()=>{preferred=null;try{localStorage.removeItem(storageKey);}catch{}resize(defaultHeight());});
+  new ResizeObserver(()=>resize(preferred ?? defaultHeight())).observe(pane);
+  const id=new URLSearchParams(location.search).get('student');
+  if(id){const row=responses.querySelector(`.response[data-student="${CSS.escape(id)}"]`);if(row){row.scrollIntoView({block:'end'});row.focus({preventScroll:true});}}
+})();

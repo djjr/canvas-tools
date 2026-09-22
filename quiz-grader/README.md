@@ -117,3 +117,5 @@ While an upload is running, the confirmation button changes to **Sending to Canv
 ### Resizing the grading workspace
 
 Drag the divider below the question panel up or down to make more room for responses. Each panel scrolls independently, and your preferred height is remembered in this browser. You can also focus the divider and use Up/Down arrows to resize it, or double-click it to restore its default size.
+
+Use **Show only ungraded** beside Student responses to hide Already Graded and Newly Graded items for the current question. Newly graded items disappear after their draft saves successfully; unsaved changes and save errors remain visible. **Show all responses** restores the full list. The filter does not change grades or upload readiness.

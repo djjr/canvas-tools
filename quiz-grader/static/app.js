@@ -25,6 +25,7 @@ for (const form of document.querySelectorAll('.draft')) {
       if (!response.ok) throw new Error(result.error || 'Save failed. Reload after preserving your draft.');
       if (sent === revision) {
         unsaved.delete(form);
+        form.dispatchEvent(new CustomEvent('draft-saved', {bubbles:true}));
         status.textContent = reviewed ? 'Saved locally · ready for upload' : 'Saved locally · not queued for upload';
         form.closest('article').dataset.complete = String(result.complete);
         const counter = document.querySelector('#completion');
@@ -131,7 +132,7 @@ for (const form of document.querySelectorAll('.publish-confirm')) {
   const pane=document.querySelector('.grading');
   if(!pane) return;
   let navFocus=false;
-  const responses=()=>Array.from(pane.querySelectorAll('.response'));
+  const responses=()=>Array.from(pane.querySelectorAll('.response:not([hidden])'));
   const questions=()=>Array.from(document.querySelectorAll('.question-link'));
   function focusResponse(index){
     const rows=responses(); if(!rows.length)return;
@@ -208,4 +209,44 @@ for (const form of document.querySelectorAll('.publish-confirm')) {
   new ResizeObserver(()=>resize(preferred ?? defaultHeight())).observe(pane);
   const id=new URLSearchParams(location.search).get('student');
   if(id){const row=responses.querySelector(`.response[data-student="${CSS.escape(id)}"]`);if(row){row.scrollIntoView({block:'end'});row.focus({preventScroll:true});}}
+})();
+
+(function(){
+  const heading=document.querySelector('#responses-heading');
+  if(!heading)return;
+  const rows=Array.from(document.querySelectorAll('.grading .response'));
+  const button=document.createElement('button');
+  button.type='button'; button.className='ungraded-filter';
+  button.textContent='Show only ungraded'; button.setAttribute('aria-pressed','false');
+  const count=document.createElement('span'); count.className='hint'; count.setAttribute('role','status');
+  const empty=document.createElement('p'); empty.className='hint';
+  empty.textContent='No ungraded responses remain for this question. Choose Show all responses to see graded items.';
+  empty.hidden=true;
+  heading.append(button,count); heading.after(empty);
+  let filtering=false;
+  function isGraded(row){
+    const toggle=row.querySelector('.review-toggle');
+    return toggle && (toggle.dataset.baseStatus==='Already Graded' || toggle.getAttribute('aria-pressed')==='true');
+  }
+  function refresh(){
+    const focused=document.activeElement.closest('.response');
+    for(const row of rows){
+      // Keep unsaved changes and save errors visible until a successful save.
+      row.hidden=filtering && isGraded(row) && !unsaved.has(row.querySelector('.draft'));
+    }
+    const remaining=rows.filter(row=>!isGraded(row)).length;
+    count.textContent=`${remaining} ungraded / ${rows.length} responses`;
+    empty.hidden=!filtering || rows.some(row=>!row.hidden);
+    if(focused?.hidden){
+      const index=rows.indexOf(focused);
+      const next=rows.slice(index+1).find(row=>!row.hidden) || rows.find(row=>!row.hidden);
+      if(next){next.focus({preventScroll:true});next.scrollIntoView({block:'end'});}else button.focus();
+    }
+  }
+  button.addEventListener('click',()=>{
+    filtering=!filtering;button.setAttribute('aria-pressed',String(filtering));
+    button.textContent=filtering?'Show all responses':'Show only ungraded';refresh();
+  });
+  document.addEventListener('draft-saved',refresh);
+  refresh();
 })();

@@ -13,3 +13,5 @@
 .response-viewport{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:0 4px 32px}
 .panel-divider{cursor:row-resize;touch-action:none;user-select:none;background:#e5eee3;color:var(--green);font-size:11px;line-height:24px;text-align:center;border-radius:3px}
 .panel-divider:hover,.panel-divider:focus-visible{background:#cddfca;outline:2px solid #80ab8e;outline-offset:-2px}
+
+.response[hidden]{display:none}.response-heading{flex-wrap:wrap;gap:10px}.ungraded-filter{font:inherit;font-size:12px;padding:6px 10px;border:1px solid var(--green);border-radius:5px;background:transparent;color:var(--green);cursor:pointer}.ungraded-filter[aria-pressed="true"]{background:var(--green);color:white}

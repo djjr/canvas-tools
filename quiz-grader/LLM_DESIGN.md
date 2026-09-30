@@ -38,6 +38,6 @@ Run `.venv/bin/python -m pytest -q` (currently 36 passing tests) and `.venv/bin/
 
 ## Known gaps / next work
 
-Implement an actual background upload job with persisted per-item progress and polling (the current browser timer is cosmetic). Add explicit stale-draft resolution (“keep my draft” / “use Canvas values”), historical attempt selection, non-essay types, and export/backup UX. Test further live updates on a disposable quiz before wider use.
+An assignment grading mode (online text entry, points, student by student) is designed in `ASSIGNMENTS_DESIGN.md`; follow its build order. Implement an actual background upload job with persisted per-item progress and polling (the current browser timer is cosmetic). Add explicit stale-draft resolution (“keep my draft” / “use Canvas values”), historical attempt selection, non-essay types, and export/backup UX. Test further live updates on a disposable quiz before wider use.
 
 Do not remove Safe Mode, conflict checks, uncertainty handling, audit journaling, or the distinction between saving a draft and marking it Newly Graded.

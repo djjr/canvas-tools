@@ -12,6 +12,25 @@ under this app directory; the repository root contains the tools index README.
 
 Margin is a single-user localhost Flask app for grading Canvas Classic Quiz essay responses question by question. Canvas is the source of truth. SQLite stores snapshots, drafts, comment-board entries, audit events, and upload journals.
 
+## Code layout
+
+The app is split into a shared core and grading modes. Only Classic Quizzes exist today; assignments are next (`ASSIGNMENTS_DESIGN.md`).
+
+Shared core:
+- `canvas_core.py`: `CanvasTransport`. Origin, redirect, and pagination checks, plus the single uncertain-on-failure `put`.
+- `publishing_core.py`: `JournaledPublisher`. The review → journal → write → read-back flow, uncertainty, and reconcile. A mode supplies `refresh`, `write`, `verified`, and `maximum`.
+- `storage.py`: SQLite snapshots, drafts, boards, audit log, and upload journals. A snapshot's `kind` (missing means quiz) selects its mode's identity functions via `KINDS`.
+- `web_core.py`: request helpers, and `MODES`, which maps a mode to its page endpoint and publisher.
+- `app.py`: the app shell. Security headers, CSRF, Safe Mode, the mutation lock, the activity log, and the upload review/confirm/reconcile pages.
+
+Quiz mode:
+- `quiz.py`: workspace/record keys and fingerprints. These locate existing saved drafts; `tests/test_modes.py` pins their values.
+- `canvas_api.py`: `CanvasClient` quiz reads and writes. `essay_records()` builds records for both the full load and single-submission verification.
+- `publishing.py`: the quiz `Publisher`.
+- `quiz_routes.py`: the `quiz` blueprint.
+
+Adding a mode means: an identity module registered in `storage.KINDS`, a client subclassing `CanvasTransport`, a publisher subclassing `JournaledPublisher`, and a blueprint registered in `app.py` and `web_core.MODES`. Snapshots and upload batches carry the mode as `kind`.
+
 ## Current behavior
 
 The app loads a Classic Quiz URL or course/quiz IDs, retrieves paginated submissions and attempt-specific questions, and supplements missing answers with assignment submission history. Only `essay_question` records are displayed. HTML is sanitized with an allowlist. Students sort alphabetically, then by attempt. The question prompt/upload controls are sticky above a scrollable response pane.
@@ -34,7 +53,7 @@ Never log tokens, headers, CSRF values, raw Canvas errors, or credentials. Refus
 
 ## Tests and commands
 
-Run `.venv/bin/python -m pytest -q` (currently 36 passing tests) and `.venv/bin/python -m compileall -q app.py canvas_api.py publishing.py storage.py`. Start with `.venv/bin/python app.py` on port 5050.
+Run `.venv/bin/python -m pytest -q` (currently 42 passing tests) and `.venv/bin/python -m compileall -q *.py`. When adding source files, also add them to `FILES` in `make_share_zip.py`. Start with `.venv/bin/python app.py` on port 5050.
 
 ## Known gaps / next work
 

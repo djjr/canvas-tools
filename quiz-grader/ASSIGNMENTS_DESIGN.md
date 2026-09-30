@@ -130,7 +130,7 @@ Mode, and demo lock. Differences from quiz mode:
 
 ## Build order
 
-1. **Refactor, with no change in behavior.** Separate the shared core (the
+1. **Done (September 30, 2026). Refactor, with no change in behavior.** Separate the shared core (the
    Canvas connection and its origin and pagination checks, the audit log,
    upload journals, Safe Mode, sanitization, CSRF, and comment boards) from
    the quiz-specific code. Quiz routes become one module (a Flask blueprint).

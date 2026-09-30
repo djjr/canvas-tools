@@ -1,7 +1,16 @@
-import hashlib
 import json
 import sqlite3
 from pathlib import Path
+import quiz
+
+# Each grading mode supplies its workspace identity and change detection.
+# Snapshots saved before modes existed have no 'kind' and are quizzes.
+KINDS = {quiz.KIND: quiz}
+
+
+def kind_of(data):
+    return KINDS[data.get('kind', quiz.KIND)]
+
 
 class Storage:
     def __init__(self, path):
@@ -85,16 +94,22 @@ class Storage:
         return db
 
     def save_snapshot(self, data):
-        key = hashlib.sha256(json.dumps([data['source'], data['course'], data['quiz']]).encode()).hexdigest()[:24]
+        kind = kind_of(data)
+        key = kind.workspace_key(data)
         for r in data['records']:
-            identity = [data['source'], data['course'], data['quiz'], r['submission_id'], r['user_id'], r['attempt'], r['question']['id']]
-            r['key'] = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
-            r['fingerprint'] = hashlib.sha256(json.dumps([r['question'], r['answer'], r['score'], r['comment'], r.get('grading_status', 'unknown')], sort_keys=True).encode()).hexdigest()
+            r['key'] = kind.record_key(data, r)
+            r['fingerprint'] = kind.fingerprint(r)
         with self.connect() as db:
             old = db.execute('SELECT data FROM snapshots WHERE id=?', (key,)).fetchone()
-            self._audit(db, 'quiz.loaded', key, after=data, before=json.loads(old['data']) if old else None)
+            self._audit(db, kind.LOADED_ACTION, key, after=data, before=json.loads(old['data']) if old else None)
             db.execute('INSERT OR REPLACE INTO snapshots VALUES (?, ?)', (key, json.dumps(data)))
         return key
+
+    def snapshot_kind(self, key):
+        """A workspace's grading mode, without parsing its student data."""
+        with self.connect() as db:
+            row = db.execute("SELECT json_extract(data, '$.kind') AS kind FROM snapshots WHERE id=?", (key,)).fetchone()
+        return (row and row['kind']) or quiz.KIND
 
     def snapshot(self, key):
         with self.connect() as db:
@@ -130,11 +145,11 @@ class Storage:
             workspace = None
             context = {}
             for snapshot in db.execute('SELECT id, data FROM snapshots'):
-                record = next((r for r in json.loads(snapshot['data'])['records'] if r['key'] == key), None)
+                data = json.loads(snapshot['data'])
+                record = next((r for r in data['records'] if r['key'] == key), None)
                 if record:
                     workspace = snapshot['id']
-                    context = {field: record[field] for field in ('name', 'user_id', 'submission_id', 'attempt')}
-                    context['question_id'] = record['question']['id']
+                    context = kind_of(data).draft_context(record)
                     break
             self._audit(db, 'draft.saved', workspace, key, dict(old) if old else None, dict(context, score=score, comment=comment, reviewed=bool(reviewed), fingerprint=fingerprint))
             db.execute('INSERT INTO drafts (id, fingerprint, score, comment, reviewed) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET fingerprint=excluded.fingerprint, score=excluded.score, comment=excluded.comment, updated=CURRENT_TIMESTAMP, reviewed=excluded.reviewed', (key, fingerprint, score, comment, int(reviewed)))

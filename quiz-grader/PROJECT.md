@@ -44,3 +44,16 @@ Replaced with `CanvasClient.load_submission(course, quiz, assignment, submission
 - Deliberately not refetched: the quiz submission's own `workflow_state` (there is a documented `GET .../quizzes/:quiz_id/submissions/:id` show endpoint, but it takes an optional `attempt` param whose effect on the serialized `attempt`/`workflow_state` fields for a non-latest attempt is not confirmed in the docs or controller source, so it was not relied on). A manual grade write only ever moves that value between `pending_review` and `complete`, both already treated as editable, and the one transition that would matter — the submission becoming excused or its answer disappearing — is independently caught by the freshly-refetched `excused` flag and `available` flag. Recorded here as a scope decision, not an oversight; revisit if verification needs to catch a broader class of concurrent Canvas-side edits than it does today.
 
 Publisher tests assert `CanvasClient.load` is never called during preview/run/reconcile, and a dedicated test pins `load_submission` to exactly its three expected endpoint calls, to keep the full-reload behavior from silently coming back.
+
+
+## Shared core for grading modes
+
+September 30, 2026, on the `assignments` branch. The quiz grader was split into a shared core (`canvas_core`, `publishing_core`, `storage`, `web_core`, `app`) and a quiz mode (`quiz`, `canvas_api`, `publishing`, `quiz_routes`), in preparation for assignment grading (`ASSIGNMENTS_DESIGN.md`).
+
+No user-visible change was intended, and this was verified against a copy of the real local database (6 quiz workspaces, 419 responses, 203 drafts, 16 upload journals). Every stored workspace key, record key, and fingerprint recomputes identically. All 41 grading, activity, and upload review pages render byte-identical HTML to `main`, apart from per-session CSRF tokens. The copy was deleted afterward, and no student data was output.
+
+Two publishing fixes were made during the split:
+- `load_submission` now raises if the per-student roster lookup fails, instead of continuing without the `excused` flag that verification relies on. Before a write this blocks the item; after a write, the item stays uncertain.
+- `preview()` and `reconcile()` handle Canvas errors per item. One unreachable student blocks only that item instead of aborting the whole review or reconciliation.
+
+Upload batches now record `kind`. Batches saved earlier have none and are treated as quiz batches.

@@ -57,3 +57,13 @@ Two publishing fixes were made during the split:
 - `preview()` and `reconcile()` handle Canvas errors per item. One unreachable student blocks only that item instead of aborting the whole review or reconciliation.
 
 Upload batches now record `kind`. Batches saved earlier have none and are treated as quiz batches.
+
+
+## Markdown export
+
+November 2026, on the `markdown-export` branch. Each question can be downloaded as Markdown from below its prompt: anonymized (the default), with names, or as a private name key. Exports are built only from the local snapshot and never contact Canvas. They include each student's latest attempt only and are recorded as `quiz.exported` audit events. Pseudonyms are ordered by a SHA-256 hash of the workspace key and user ID, so labels stay the same for a quiz and don't reveal alphabetical order. HTML conversion is a small standard-library parser. It doesn't use the sanitizer, and it drops link targets that aren't http, https, or mailto. Tests use the synthetic demo only.
+
+
+## Sharing with colleagues
+
+November 13, 2026. The share ZIP now includes `Start Margin.command` and a new `Start Margin.bat`. The packager writes explicit Unix modes, so the Mac launcher stays executable even when the ZIP is built on Windows. `.gitattributes` keeps `.bat` files CRLF. On first run, both launchers create `.env` from the placeholder and repair an incomplete venv. The Mac first-run path was verified from an unzipped package; the Windows launcher is untested. Options considered, and the planned next step (a `uv` package), are recorded in `LLM_DESIGN.md`.

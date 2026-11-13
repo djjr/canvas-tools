@@ -22,12 +22,13 @@ Shared core:
 - `storage.py`: SQLite snapshots, drafts, boards, audit log, and upload journals. A snapshot's `kind` (missing means quiz) selects its mode's identity functions via `KINDS`.
 - `web_core.py`: request helpers, and `MODES`, which maps a mode to its page endpoint and publisher.
 - `app.py`: the app shell. Security headers, CSRF, Safe Mode, the mutation lock, the activity log, and the upload review/confirm/reconcile pages.
+- `markdown_export.py`: HTML-to-Markdown conversion, salted stable pseudonyms (`Student NN`), and latest-attempt selection. It works only from the local snapshot. Assignment mode should reuse it.
 
 Quiz mode:
 - `quiz.py`: workspace/record keys and fingerprints. These locate existing saved drafts; `tests/test_modes.py` pins their values.
 - `canvas_api.py`: `CanvasClient` quiz reads and writes. `essay_records()` builds records for both the full load and single-submission verification.
 - `publishing.py`: the quiz `Publisher`.
-- `quiz_routes.py`: the `quiz` blueprint.
+- `quiz_routes.py`: the `quiz` blueprint, including the GET routes `/quiz/<key>/export/<question>` (`?names=1` includes names) and `/quiz/<key>/export-key`. Both write a `quiz.exported` audit event.
 
 Adding a mode means: an identity module registered in `storage.KINDS`, a client subclassing `CanvasTransport`, a publisher subclassing `JournaledPublisher`, and a blueprint registered in `app.py` and `web_core.MODES`. Snapshots and upload batches carry the mode as `kind`.
 
@@ -53,10 +54,20 @@ Never log tokens, headers, CSRF values, raw Canvas errors, or credentials. Refus
 
 ## Tests and commands
 
-Run `.venv/bin/python -m pytest -q` (currently 42 passing tests) and `.venv/bin/python -m compileall -q *.py`. When adding source files, also add them to `FILES` in `make_share_zip.py`. Start with `.venv/bin/python app.py` on port 5050.
+Run `.venv/bin/python -m pytest -q` (currently 48 passing tests) and `.venv/bin/python -m compileall -q *.py`. When adding source files, also add them to `FILES` in `make_share_zip.py`. `tests/test_share_zip.py` covers the packager. Start with `.venv/bin/python app.py` on port 5050.
+
+## Sharing with colleagues
+
+Colleagues get a source ZIP from `make_share_zip.py` (written to `dist/`). It contains two double-click launchers: `Start Margin.command` (Mac) and `Start Margin.bat` (Windows). On first run, each launcher creates `.venv`, installs `requirements.txt`, and copies `.env.example` to `.env`. It reinstalls dependencies if the venv can't import them, then opens the browser once the server responds. The packager sets Unix modes explicitly, so the `.command` file stays executable, and `.gitattributes` keeps `.bat` files CRLF. Keep the two launchers' behavior in sync.
+
+The Mac launcher has been tested from an unzipped package. The Windows launcher has not yet been run on Windows. The planned next step is a `uv`-installable package (a `pyproject.toml` with a `margin` entry point, and `.env`/`instance/` moved to a per-user directory), followed by an in-app settings page so colleagues don't need to edit `.env` by hand. A shared hosted server is out of scope: it would need multi-user auth and Canvas OAuth, and it would hold student data on a server.
+
+## Branch state (November 13, 2026)
+
+`main` ends at the Finder launcher and assignment-design commit. `markdown-export` (pushed, not merged) adds the shared-core split from `assignments`, the Markdown export, and the share launchers. The `assignments` branch has no new work beyond the split. Merge `markdown-export` into `main` before building assignment mode on top of it.
 
 ## Known gaps / next work
 
-An assignment grading mode (online text entry, points, student by student) is designed in `ASSIGNMENTS_DESIGN.md`; follow its build order. Implement an actual background upload job with persisted per-item progress and polling (the current browser timer is cosmetic). Add explicit stale-draft resolution (“keep my draft” / “use Canvas values”), historical attempt selection, non-essay types, and export/backup UX. Test further live updates on a disposable quiz before wider use.
+An assignment grading mode (online text entry, points, student by student) is designed in `ASSIGNMENTS_DESIGN.md`; follow its build order. Implement an actual background upload job with persisted per-item progress and polling (the current browser timer is cosmetic). Add explicit stale-draft resolution (“keep my draft” / “use Canvas values”), historical attempt selection, non-essay types, and draft backup/export (Markdown export of responses exists; drafts, scores, and feedback aren't exported). Have someone run the Windows launcher once. Test further live updates on a disposable quiz before wider use.
 
 Do not remove Safe Mode, conflict checks, uncertainty handling, audit journaling, or the distinction between saving a draft and marking it Newly Graded.

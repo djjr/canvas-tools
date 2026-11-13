@@ -93,7 +93,17 @@ Tests use synthetic data only. They cover persistence, decimal validation, CSRF,
 - The submission question endpoint's attempt parameter is confirmed in official Canvas source, but is not described in its public parameter table. See `PROJECT.md`.
 - Roster coverage depends on the quiz's assignment. A quiz without an assignment cannot list students with no quiz submission.
 - Large classes load synchronously with per-request timeouts. Partial per-student failures are listed; loading the quiz again retries retrieval.
-- No automated grading, historical-attempt selector, export UI, or draft conflict resolution yet. All attempts returned by Canvas are shown with labels.
+- No automated grading, historical-attempt selector, draft backup/export, or draft conflict resolution yet. Response export is Markdown only, one question at a time (see below). All attempts returned by Canvas are shown with labels.
+
+## Export responses to Markdown
+
+Beneath each question prompt, **Export this question to Markdown** offers three downloads:
+
+- **anonymized** (the default choice): the prompt, then each student's response labeled `Student 01`, `Student 02`, and so on. Use this for reading, sharing with a co-instructor, or pasting into an AI tool.
+- **with names**: the same file with real student names.
+- **name key**: a private table that maps each `Student NN` label to a name. Keep it local.
+
+Each export includes only each student's latest attempt. Labels stay the same for a quiz across exports, but they are shuffled, so the numbering doesn't follow alphabetical order. Exports are built from the locally saved snapshot without contacting Canvas, so load the quiz again first if you need fresh responses. Formatting is converted to Markdown. Every export is recorded in the activity log, and the log notes whether names were included. Drafts, scores, and feedback are not exported.
 
 ## Question-specific comment board
 

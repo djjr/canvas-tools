@@ -1,5 +1,7 @@
 # Canvas Classic Quiz Grader — Project Handoff
 
+> **Historical:** the original September 2026 brief, kept for context. Its version-1 read-only rule no longer applies. For current state, read `LLM_DESIGN.md` (code, invariants, next work) and `PROJECT.md` (dated decisions and verified API behavior).
+
 ## Purpose
 
 Build a small local web application that provides a faster, more comfortable interface for grading open-ended responses submitted through **Canvas LMS Classic Quizzes**.

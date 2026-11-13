@@ -1,6 +1,7 @@
 """Classic Quiz grading pages: load, grade question by question, drafts, comment boards, publish preview."""
 from decimal import Decimal, InvalidOperation
-from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, jsonify, redirect, render_template, request, url_for
+import markdown_export
 from canvas_api import CanvasError, parse_quiz
 from fixtures import demo
 from web_core import canvas_client, publisher, safe_mode, storage
@@ -46,6 +47,37 @@ def grade(key):
     pos = ids.index(selected) if ids else 0
     complete = sum(bool(r['draft'] and r['draft'].get('reviewed') and not r['stale']) for r in records if r['editable'])
     return render_template('grade.html', data=data, key=key, questions=questions, selected=selected, records=records, board=storage().board(key, selected), publish_history=storage().publish_history(key), complete=complete, total=sum(r['editable'] for r in records), previous=ids[pos-1] if pos else None, following=ids[pos+1] if pos+1<len(ids) else None)
+
+
+def _download(text, name):
+    return Response(text, mimetype='text/markdown', headers={'Content-Disposition': f'attachment; filename="{name}"'})
+
+
+@bp.get('/quiz/<key>/export/<question>')
+def export_question(key, question):
+    """Latest-attempt responses to one question as Markdown. Anonymized unless ?names=1."""
+    data = storage().snapshot(key)
+    records = [r for r in (data or {}).get('records', []) if str(r['question']['id']) == question]
+    if not records:
+        abort(404)
+    names = request.args.get('names') == '1'
+    labels = markdown_export.pseudonyms(key, (r['user_id'] for r in data['records']))
+    prompt = records[0]['question']
+    text = markdown_export.question_markdown(data['title'], prompt, records, labels, names)
+    storage().audit('quiz.exported', key, question, after={'question_id': question, 'names': names, 'students': len(markdown_export.latest_attempts(records))})
+    return _download(text, markdown_export.filename(data['title'], prompt.get('question_name'), 'names' if names else 'anonymized'))
+
+
+@bp.get('/quiz/<key>/export-key')
+def export_key(key):
+    """Private pseudonym -> name table for this quiz's anonymized exports."""
+    data = storage().snapshot(key)
+    if not data:
+        abort(404)
+    labels = markdown_export.pseudonyms(key, (r['user_id'] for r in data['records']))
+    names = {r['user_id']: r['name'] for r in data['records']}
+    storage().audit('quiz.exported', key, after={'name_key': True, 'students': len(labels)})
+    return _download(markdown_export.key_markdown(data['title'], labels, names), markdown_export.filename(data['title'], 'name key'))
 
 
 @bp.post('/quiz/<key>/board/<question>')

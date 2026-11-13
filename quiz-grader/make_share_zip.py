@@ -6,7 +6,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 ROOT = Path(__file__).resolve().parent
 # Exact files only: never recursively collect a directory or trust .gitignore.
 FILES = (
-    'app.py', 'canvas_core.py', 'canvas_api.py', 'fixtures.py', 'publishing_core.py',
+    'app.py', 'canvas_core.py', 'markdown_export.py', 'canvas_api.py', 'fixtures.py', 'publishing_core.py',
     'publishing.py', 'quiz.py', 'quiz_routes.py', 'storage.py', 'web_core.py',
     'requirements.txt', 'requirements-dev.txt',
     'README.md', 'PROJECT.md', 'LLM_DESIGN.md', 'CANVAS_GRADER_HANDOFF.md', 'ASSIGNMENTS_DESIGN.md',
@@ -14,7 +14,7 @@ FILES = (
     'templates/base.html', 'templates/index.html', 'templates/grade.html',
     'templates/publish.html', 'templates/activity.html', 'templates/reset_demo.html',
     'tests/test_grader.py', 'tests/test_publishing.py', 'tests/test_activity.py',
-    'tests/test_demo_reset.py', 'tests/test_modes.py',
+    'tests/test_demo_reset.py', 'tests/test_modes.py', 'tests/test_export.py',
 )
 EXAMPLE_ENV = ('CANVAS_BASE_URL=https://your-university.instructure.com\n'
                'CANVAS_TOKEN=\n'

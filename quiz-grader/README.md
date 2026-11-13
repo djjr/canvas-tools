@@ -2,13 +2,36 @@
 
 A local Flask app for reading essay responses question by question and saving grading drafts in SQLite. Canvas retrieval uses GET requests. An explicit review-and-confirm flow can publish Newly Graded items. Demo data and Safe Mode cannot publish.
 
+## Quick start (from a shared ZIP)
+
+1. Install Python 3.12 or newer from python.org if you don't already have it.
+2. Unzip the folder anywhere you like, such as Documents.
+3. Double-click the launcher:
+   - **Mac:** `Start Margin.command`. The first time, macOS may refuse to open
+     it. If so, right-click it, choose **Open**, then confirm **Open**.
+   - **Windows:** `Start Margin.bat`. If SmartScreen appears, choose
+     **More info**, then **Run anyway**.
+4. The first launch takes a minute to install dependencies. Margin then opens
+   at http://127.0.0.1:5050. Choose **Explore the demo** to try it without
+   credentials.
+5. To connect Canvas, follow **Connect Canvas** below. The launcher has
+   already created `.env` for you, so open it in TextEdit or Notepad and fill
+   it in. (On a Mac, press Command-Shift-. in Finder to show hidden files.)
+
+Keep the window that opens with the app. Closing it stops Margin. Your drafts
+live in the `instance/` folder. When you get a newer ZIP, copy `instance/` and
+`.env` into the new folder before you start it.
+
 ## Run
 
 To prepare a source-only ZIP for colleagues, double-click `make-share-zip.bat`
 on Windows with Python 3 installed. On macOS or Linux, run
 `python3 make_share_zip.py`. The ZIP appears in `dist/`.
 These packaging tools are available in the development checkout and are not
-included in the sharing ZIP.
+included in the sharing ZIP. The ZIP does include both double-click launchers
+(`Start Margin.command` for Mac, `Start Margin.bat` for Windows). The packager
+marks the Mac launcher executable even when you build the ZIP on Windows.
+`.gitattributes` keeps `.bat` files in Windows line endings.
 The packager includes only explicitly listed source, test, and documentation
 files and generates a fresh placeholder `.env.example` with Safe Mode enabled.
 It excludes `.env`, `instance/` (student data and audit history), Git history,

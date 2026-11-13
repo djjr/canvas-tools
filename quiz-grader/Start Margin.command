@@ -12,19 +12,29 @@ if curl -s -o /dev/null "$URL"; then
   exit 0
 fi
 
-# Use the existing virtual environment (here or one level up), or create one.
-if [[ -x .venv/bin/python ]]; then
+# Use an existing virtual environment (here or one level up) whose dependencies
+# are installed; otherwise create or repair one here.
+DEPS="import flask, requests, bleach, dotenv"
+if [[ -x .venv/bin/python ]] && .venv/bin/python -c "$DEPS" 2>/dev/null; then
   PY=.venv/bin/python
-elif [[ -x ../.venv/bin/python ]]; then
+elif [[ -x ../.venv/bin/python ]] && ../.venv/bin/python -c "$DEPS" 2>/dev/null; then
   PY=../.venv/bin/python
 else
   echo "First run: creating a virtual environment and installing dependencies…"
-  python3 -m venv .venv && .venv/bin/python -m pip install -q -r requirements.txt || {
+  python3 -m venv .venv && .venv/bin/python -m pip install -q --disable-pip-version-check -r requirements.txt || {
     echo "Setup failed. Install Python 3.12 or newer, then try again."
     read -k1 "?Press any key to close."
     exit 1
   }
   PY=.venv/bin/python
+fi
+
+# First run from a share ZIP: start a .env from the placeholder template.
+if [[ ! -f .env && -f .env.example ]]; then
+  cp .env.example .env
+  echo "Created .env. To connect Canvas, open it in TextEdit, add your Canvas address and token, then restart."
+  echo "The demo works without it."
+  echo
 fi
 
 # Open the browser once the server answers.
